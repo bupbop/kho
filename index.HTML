@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tra cứu hàng hóa trong kho</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f7fa; color: #333; }
+    h2 { text-align: center; color: #2b4eff; }
+    input, select { margin: 10px 5px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background: #2b4eff; color: white; }
+    tr:hover { background: #eef4ff; }
+    .filters { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  </style>
+</head>
+<body>
+  <h2>📦 Tra cứu hàng hóa trong kho</h2>
+
+  <div class="filters">
+    <label><b>1️⃣ Chọn file CSV:</b></label>
+    <input type="file" id="csvFile" accept=".csv" />
+    <input type="text" id="searchInput" placeholder="🔍 Tìm theo mã, tên, máy..." />
+    <select id="filterKho"><option value="">-- Lọc theo kho --</option></select>
+    <select id="filterKe"><option value="">-- Lọc theo kệ --</option></select>
+  </div>
+
+  <table id="dataTable">
+    <thead><tr id="tableHeader"></tr></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <script>
+    let data = [];
+    let headers = [];
+
+    document.getElementById("csvFile").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        const text = event.target.result;
+        parseCSV(text);
+      };
+      reader.readAsText(file, "UTF-8");
+    });
+
+    function parseCSV(text) {
+      // Tự nhận biết dấu phân cách ("," hoặc ";")
+      const delimiter = text.includes(";") ? ";" : ",";
+      const rows = text.split(/\r?\n/).filter(r => r.trim() !== "");
+      headers = rows[0].split(delimiter).map(h => h.trim());
+      data = rows.slice(1).map(row => {
+        const values = row.split(delimiter);
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = values[i]?.trim() || "");
+        return obj;
+      });
+      populateFilters();
+      renderTable(data);
+    }
+
+    function populateFilters() {
+      const khoSet = new Set(data.map(r => r["Kho"]));
+      const keSet = new Set(data.map(r => r["Kệ"]));
+      const khoSelect = document.getElementById("filterKho");
+      const keSelect = document.getElementById("filterKe");
+      khoSelect.innerHTML = '<option value="">-- Lọc theo kho --</option>';
+      keSelect.innerHTML = '<option value="">-- Lọc theo kệ --</option>';
+      khoSet.forEach(k => { if (k) khoSelect.innerHTML += `<option>${k}</option>`; });
+      keSet.forEach(k => { if (k) keSelect.innerHTML += `<option>${k}</option>`; });
+    }
+
+    function renderTable(rows) {
+      const headerEl = document.getElementById("tableHeader");
+      const bodyEl = document.getElementById("tableBody");
+      headerEl.innerHTML = "";
+      bodyEl.innerHTML = "";
+
+      headers.forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h;
+        headerEl.appendChild(th);
+      });
+
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        headers.forEach(h => {
+          const td = document.createElement("td");
+          td.textContent = r[h];
+          tr.appendChild(td);
+        });
+        bodyEl.appendChild(tr);
+      });
+    }
+
+    function applyFilters() {
+      const keyword = document.getElementById("searchInput").value.toLowerCase();
+      const kho = document.getElementById("filterKho").value;
+      const ke = document.getElementById("filterKe").value;
+
+      let filtered = data.filter(r => {
+        const matchText = Object.values(r).some(v => v.toLowerCase().includes(keyword));
+        const matchKho = kho ? r["Kho"] === kho : true;
+        const matchKe = ke ? r["Kệ"] === ke : true;
+        return matchText && matchKho && matchKe;
+      });
+
+      renderTable(filtered);
+    }
+
+    document.getElementById("searchInput").addEventListener("input", applyFilters);
+    document.getElementById("filterKho").addEventListener("change", applyFilters);
+    document.getElementById("filterKe").addEventListener("change", applyFilters);
+  </script>
+</body>
+</html>
